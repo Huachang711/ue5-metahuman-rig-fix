@@ -351,8 +351,18 @@ Epic 服务器验明身份
   </tbody>
 </table>
 
-<h2>五、下载纹理报「用户未登录」</h2>
+<h2>五、下载纹理报错的两个坑</h2>
 
+<p>下载纹理有两个完全不同的报错，先分清是哪个：</p>
+<table>
+  <thead><tr><th style="width:46%">报错</th><th>原因</th></tr></thead>
+  <tbody>
+    <tr><td>用户未登录，请在下载源面部纹理前进行自动绑定</td><td>新会话没唤醒登录 → 看第一种</td></tr>
+    <tr><td>源身体纹理下载失败，代码为「服务器错误」</td><td>并发连接池打满，排队超时 → 看第二种</td></tr>
+  </tbody>
+</table>
+
+<h3>第一种：用户未登录</h3>
 <p>点 <code>Download Texture Sources</code>，弹出两条错误：</p>
 <pre>用户未登录，请在下载源面部纹理前进行自动绑定
 用户未登录，请在下载源身体纹理前进行自动绑定</pre>
@@ -403,6 +413,52 @@ Epic 服务器验明身份
   每次新开编辑器都要先走一遍第一步。
 </div>
 
+<h3 style="margin-top:44px;">第二种：下载超时（服务器错误）</h3>
+
+<p>登录成功了，点下载仍然失败：</p>
+<pre>源身体纹理下载失败，代码为"服务器错误"</pre>
+
+<p>日志长这样：</p>
+<pre>GET .../areas/chest/textureTypes/underwear/.../resolutions/8k
+    completed with reason 'ConnectionError' after 31.11s
+libcurl error: 28 (Timeout was reached)
+<span class="bad">No more connections allowed to host</span>
+<span class="bad">No connections available</span>
+Operation timed out after 30000 milliseconds with <span class="bad">0 bytes received</span></pre>
+
+<h3>不是带宽问题，也不是内存问题</h3>
+<table>
+  <thead><tr><th style="width:42%">线索</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td><code>0 bytes received</code></td><td>一个字节都没开始接收 —— 连接压根没建立</td></tr>
+    <tr><td><code>No connections available</code></td><td>UE 对同一服务器的并发连接已用满</td></tr>
+    <tr><td><code>after 31.11s</code> / <code>30000 ms</code></td><td>卡满 30 秒超时，<strong>排队时间也算在里面</strong></td></tr>
+  </tbody>
+</table>
+
+<p>同时请求多张 8K 贴图（面部、身体、多套材质），连接池被打满，后面的请求只能排队，排着排着就超时了。</p>
+
+<div class="callout">
+  <span class="lab">8K 本身没问题</span>
+  一张 8K 贴图约 67 MB。5 MB/s 的线路 13 秒就能下完，30 秒绰绰有余。<strong>不是下不了，是一次要的太多。</strong>
+</div>
+
+<h3>解法</h3>
+<div class="step" style="margin-bottom:0;">
+  <div class="n">1</div>
+  <div class="c">
+    <div class="t">等 10 秒，再点一次下载</div>
+    <p>连接释放后通常能过。已下完的部分有缓存，不会重下。</p>
+  </div>
+</div>
+<div class="step" style="margin-bottom:0;">
+  <div class="n">2</div>
+  <div class="c">
+    <div class="t">还失败就降到 4K</div>
+    <p>减少并发压力，不是省带宽。4K 对配置正常的机器完全够跑，别降更低。</p>
+  </div>
+</div>
+
 <h2>六、另一种情况：300 秒报错（这个不怪你）</h2>
 <p>如果名字已经改成英文、插件也开了，绑定还是失败，那要看<strong>卡了多久</strong>：</p>
 
@@ -435,6 +491,7 @@ Epic 服务器验明身份
     <tr><td>同时只开一套</td><td>两套一起开会互相干扰，比只开一个更不稳</td></tr>
     <tr><td><code>Online Subsystem EOS</code> 不是 <code>EOS Shared</code></td><td>前者是登录模块（默认关着，要手动开），后者只是个零件。勾错等于没开</td></tr>
     <tr><td>下载纹理前先点一次绑定</td><td>下载不负责登录，新会话不先唤醒就会报「用户未登录」</td></tr>
+    <tr><td>下载报「服务器错误」先重试</td><td>多半是并发连接排队超时，不是下不了。等 10 秒再点，已下的有缓存</td></tr>
   </tbody>
 </table>
 
