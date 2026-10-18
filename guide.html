@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MetaHuman 绑不上骨？多半是项目名惹的祸</title>
+<style>
+  :root{
+    --ink:#14161a; --ink-2:#3d4351; --ink-3:#6b7280;
+    --line:#e3e6eb; --bg:#ffffff; --bg-2:#f7f8fa;
+    --accent:#c2410c; --accent-2:#1d4ed8; --ok:#15803d; --warn:#b45309;
+    --code-bg:#1a1d24; --code-ink:#e5e7eb;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg-2); color:var(--ink);
+    font-family:var(--sans); font-size:15.5px; line-height:1.8;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:860px; margin:0 auto; background:var(--bg); padding:64px 72px 96px; box-shadow:0 0 0 1px var(--line);}
+  @media (max-width:760px){.page{padding:32px 20px 64px;}}
+
+  header.cover{border-bottom:3px solid var(--ink); padding-bottom:28px; margin-bottom:40px;}
+  .kicker{font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:14px;}
+  h1{font-size:33px; line-height:1.35; margin:0 0 16px; letter-spacing:-.01em;}
+  .sub{font-size:16px; color:var(--ink-2); margin:0;}
+  .meta{margin-top:22px; display:flex; flex-wrap:wrap; gap:10px;}
+  .meta span{font-size:12px; color:var(--ink-3); border:1px solid var(--line); border-radius:999px; padding:4px 12px; background:var(--bg-2);}
+
+  h2{font-size:22px; margin:54px 0 16px; padding-left:14px; border-left:4px solid var(--accent); line-height:1.4;}
+  h3{font-size:16.5px; margin:30px 0 10px;}
+  p{margin:0 0 15px;}
+  ul,ol{margin:0 0 16px; padding-left:24px;}
+  li{margin-bottom:8px;}
+  code{font-family:var(--mono); font-size:13px; background:#eef0f4; padding:2px 6px; border-radius:4px; color:#b91c1c;}
+  .term{color:var(--ink-3); font-size:14px;}
+
+  .verdict{
+    background:#fff7ed; border:1px solid #fed7aa; border-left:5px solid var(--accent);
+    padding:24px 28px; border-radius:6px; margin:26px 0 34px;
+  }
+  .verdict .t{font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:10px;}
+  .verdict p{margin:0 0 12px; font-size:16px; line-height:1.8;}
+  .verdict p:last-child{margin:0;}
+
+  pre{
+    background:var(--code-bg); color:var(--code-ink); font-family:var(--mono);
+    font-size:12.5px; line-height:1.75; padding:18px 20px; border-radius:6px;
+    overflow-x:auto; margin:14px 0 10px;
+  }
+  pre .bad{color:#fca5a5;}
+  pre .good{color:#86efac;}
+  pre .dim{color:#94a3b8;}
+  .explain{font-size:13.5px; color:var(--ink-3); margin:0 0 22px; padding-left:2px;}
+  .explain b{color:var(--ink-2);}
+
+  table{width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px;}
+  th{text-align:left; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3);
+     border-bottom:2px solid var(--ink); padding:10px 12px; background:var(--bg-2);}
+  td{border-bottom:1px solid var(--line); padding:11px 12px; vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0 24px;}
+  @media (max-width:680px){.cols{grid-template-columns:1fr;}}
+  .card{border:1px solid var(--line); border-radius:6px; padding:16px 18px; background:var(--bg-2);}
+  .card .h{font-size:13px; font-weight:700; margin-bottom:10px;}
+  .card.no{border-color:#fecaca; background:#fef2f2;}
+  .card.no .h{color:#b91c1c;}
+  .card.yes{border-color:#bbf7d0; background:#f0fdf4;}
+  .card.yes .h{color:var(--ok);}
+  .card p{margin:0; font-size:13.5px; color:var(--ink-2);}
+
+  .step{display:flex; gap:16px; margin:0 0 26px; align-items:flex-start;}
+  .step .n{
+    flex:0 0 30px; height:30px; border-radius:50%; background:var(--ink); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;
+    font-family:var(--mono); margin-top:3px;
+  }
+  .step .c{flex:1;}
+  .step .c .t{font-weight:700; margin-bottom:6px; font-size:15.5px;}
+  .step .c p{margin:0 0 9px; color:var(--ink-2); font-size:14.5px;}
+
+  .callout{border-left:3px solid var(--accent-2); background:#eff6ff; padding:14px 18px; border-radius:0 5px 5px 0; margin:18px 0; font-size:14.5px;}
+  .callout.warn{border-left-color:var(--warn); background:#fffbeb;}
+  .callout .lab{font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-2); display:block; margin-bottom:6px;}
+  .callout.warn .lab{color:var(--warn);}
+
+  .timeline{list-style:none; padding:0; margin:20px 0; border-left:2px solid var(--line); padding-left:24px;}
+  .timeline li{position:relative; margin-bottom:18px; font-size:14.5px; color:var(--ink-2);}
+  .timeline li::before{content:""; position:absolute; left:-30px; top:8px; width:9px; height:9px; border-radius:50%; background:var(--line); border:2px solid var(--bg);}
+  .timeline li.key::before{background:var(--accent);}
+
+  footer{margin-top:64px; padding-top:20px; border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-3);}
+  footer a{color:var(--accent-2); text-decoration:none; word-break:break-all;}
+
+  @media print{
+    body{background:#fff;}
+    .page{box-shadow:none; max-width:none; padding:0;}
+    h2{page-break-after:avoid;}
+    pre,table,.card{page-break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="cover">
+  <div class="kicker">给美术看的排查笔记 · Unreal Engine 5.6</div>
+  <h1>MetaHuman 绑不上骨、一直卡在「自动绑定面部网格体」？<br>多半是项目名起了中文</h1>
+  <p class="sub">不用懂代码，跟着这份笔记能自己查出来。全程实机验证过。</p>
+  <div class="meta">
+    <span>UE 5.6.1</span>
+    <span>Windows 11</span>
+    <span>2026-10-19</span>
+    <span>实测有效</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <div class="t">先看结论，一句话</div>
+  <p><strong>给项目起中文名，把引擎的登录模块搞崩了。</strong></p>
+  <p>打个比方：引擎启动时要拿着项目名去 Epic 服务器「报到」，报到成功才允许你用云端功能。名字是中文，对面不认，报到这一步就被拒了。登录没成功，后面「帮我绑骨骼」的请求一个都发不出去——你看到的就是一直转圈。</p>
+  <p>把项目文件夹和 <code>.uproject</code> 文件名都改成英文，绑定 <strong>83 秒</strong>就跑完了。</p>
+  <p class="term">换线路、重装、重登账号都不是病因 —— 但梯子得开着。判断标准很简单：Epic 商店能正常打开就行。</p>
+</div>
+
+<h2>一、你遇到的样子</h2>
+<p>点「创建完整绑定」之后，画面大概是这几种：</p>
+<table>
+  <thead><tr><th style="width:34%">你看到的</th><th>具体情况</th></tr></thead>
+  <tbody>
+    <tr><td>一直转圈</td><td>提示条写着「自动绑定面部网格体」，等了十几分钟没变化</td></tr>
+    <tr><td>弹一个「超时」</td><td>大概 90 秒后提示「面部自动绑定失败，代码为"超时"」</td></tr>
+    <tr><td>什么都不发生</td><td>进度条挂着，电脑风扇也不响，像没在工作</td></tr>
+    <tr><td>按钮变灰点不动</td><td>提示「资产处于绑定待处理状态」，脸也调不了、材质也换不了</td></tr>
+  </tbody>
+</table>
+<p>这四种看起来不一样，其实是同一个毛病。</p>
+
+<h2>二、为什么会这样</h2>
+
+<h3>2.1 完整链条（用大白话标了一遍）</h3>
+<p>UE 5.6 开始，MetaHuman 的「绑骨骼」不再在你电脑上算，是<strong>把你的模型传到 Epic 的服务器上算，算完传回来</strong>。所以必须先证明「你是个合法用户」。这条链是这样的：</p>
+
+<pre>你的项目名
+   ↓  引擎启动时拿它去报到
+登录模块启动
+   ↓  报到成功才发得出请求
+Epic 服务器验明身份
+   ↓
+发出「帮我绑骨骼」的请求
+   ↓
+服务器算完，把骨骼数据传回来
+   ↓
+你电脑上生成本地模型 → 绑定完成
+
+<span class="bad">中文项目名在第一步就断了，后面五步一次都没执行过。</span>
+<span class="bad">所以不是「慢」，是根本没开始。</span></pre>
+
+<h3>2.2 两项目的对照（同一台电脑、同一个账号、同一个网络）</h3>
+<p>只有项目名不同，结果完全不同。<strong>这就是决定性证据：</strong></p>
+
+<div class="cols">
+  <div class="card no">
+    <div class="h">✕ 中文项目「角色」</div>
+    <p style="font-family:var(--mono);font-size:12px;line-height:1.65;color:#7f1d1d;margin-bottom:10px;">
+      登录模块启动失败<br>参数无效<br>（EOS_InvalidParameters）<br><br>
+      结果：0 个请求发出<br>绑定永远不开始
+    </p>
+    <p>点几次都一样，日志只写一行「自动绑定面部网格体」就没了</p>
+  </div>
+  <div class="card yes">
+    <div class="h">✓ 英文项目「Character」</div>
+    <p style="font-family:var(--mono);font-size:12px;line-height:1.65;color:#14532d;margin-bottom:10px;">
+      登录模块启动成功<br>报的名字 = Character<br><br>
+      登录完成：EOS_Success<br><br>
+      结果：83 秒绑完
+    </p>
+    <p>跳浏览器授权一次，之后一路跑通</p>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="lab">关键点</span>
+  引擎「报到」时报的名字，直接取自你的<strong>项目文件名</strong>。这个名字只认英文和数字，中文它理解不了，于是判定「参数不对」，整个登录模块拒绝启动。
+</div>
+
+<h2>三、怎么修（8 步，照做就行）</h2>
+
+<div class="callout warn">
+  <span class="lab">动手之前：梯子先开起来，不然白改</span>
+  <p style="margin:0 0 10px;">这一步不做，后面每一步都会失败，而且失败的样子跟「没改名」一模一样 —— 你会以为改名没用，白折腾。</p>
+  <p style="margin:0 0 8px;"><strong>怎么判断梯子通了：</strong>打开 Epic 商店，内容能正常刷出来；或者打开 Fab 面板，能加载出东西。能 → 跳过这条，直接看第 1 步。</p>
+  <p style="margin:0 0 8px;">不能 → 先把梯子调通再往下走。用什么、怎么配，<strong>你自己清楚就行</strong>，这里不展开。</p>
+  <p style="margin:0;font-size:14px;">同时只开一套，切换时要彻底关掉前一套（不是只关窗口），两套一起开容易互相干扰。</p>
+</div>
+
+<div class="step">
+  <div class="n">1</div>
+  <div class="c">
+    <div class="t">先检查项目名有没有中文</div>
+    <p>三样东西都得是英文：<strong>文件夹名</strong>、<strong>.uproject 文件名</strong>、<strong>整个路径</strong>。空格、日文、表情符号也不行。</p>
+    <p>❌ 反例：<code>D:\Projects\角色\角色.uproject</code></p>
+    <p>✅ 正例：<code>D:\Projects\Character\Character.uproject</code></p>
+    <div class="callout" style="margin:14px 0 0;">
+      <span class="lab">如果名字本来就是英文</span>
+      那病因不在名字上，这份文档的第三章不适用。直接用第五章那张对照表，看日志里卡了多少秒来判断。
+    </div>
+    <div class="callout" style="margin:12px 0 0;">
+      <span class="lab">想先确认一下再动手？</span>
+      <p style="margin:0 0 8px;">可以新建一个纯英文项目（例如 <code>TestMH</code>）试一次，<strong>但要同样把上面的网开好、EOS 插件打开</strong>（插件在第 5 步有说明），否则测试一定失败，反而误导你。</p>
+      <p style="margin:0;">能绑上 → 确认是名字问题，放心改正式项目；绑不上 → 先把梯子和插件弄好，别急着动正式项目。</p>
+    </div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">2</div>
+  <div class="c">
+    <div class="t">完全关掉 UE，然后备份一份</div>
+    <p><strong>先保存项目、彻底关闭 UE</strong>，不然文件夹正被占用，复制会报错、改名也会失败。</p>
+    <p>关掉之后，把整个项目文件夹复制一份，副本名字后面加 <code>_备份</code>，最好放到别的位置，别跟正式项目挤在一起。</p>
+    <p><strong>这个副本不要打开，也不要拿它测试。</strong>它只是怕你改坏了能退回来。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">3</div>
+  <div class="c">
+    <div class="t">改正式项目的名字，文件夹和 .uproject 必须改成一样的</div>
+    <p>文件夹 <code>角色</code> → 改成 <code>Character</code></p>
+    <p>里面的 <code>角色.uproject</code> → 改成 <code>Character.uproject</code></p>
+    <p><strong>两个名字必须完全一致</strong>，不然 UE 会说找不到项目，或者打开成空项目。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">4</div>
+  <div class="c">
+    <div class="t">双击新的 .uproject 打开</div>
+    <p>里面的模型、材质、蓝图都还在，<strong>不会丢</strong>（项目内部用的是相对路径，不认绝对路径）。</p>
+    <p>如果弹出「是否重新关联 / 升级项目」，选「是」。</p>
+    <p><strong>打开后先确认一件事：</strong>在内容浏览器空白处右键，菜单里有没有「MetaHuman」这一项。没有的话，去 <strong>编辑 → 插件</strong> 搜 <code>MetaHuman</code>，把 <strong>MetaHuman Creator</strong> 和 <strong>MetaHuman</strong> 勾上，重启编辑器。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">5</div>
+  <div class="c">
+    <div class="t">确认「登录模块」的插件是开着的</div>
+    <p>这个插件叫 <strong>Online Subsystem EOS</strong>，<strong>默认是关的</strong>，很多人都没开过。没开，登录照样起不来。</p>
+    <p class="explain" style="margin-bottom:8px;">如果刚才第 4 步你已经打开过插件面板，就在同一个面板里把这一项也勾上，<b>一次性重启，省得等两遍</b>。</p>
+    <p><strong>怎么开：</strong>菜单栏 <strong>编辑 → 插件</strong> → 搜索框输入 <code>EOS</code> → 找到 <strong>Online Subsystem EOS</strong>（下面小字是 <em>Online Subsystem for Epic Online Services</em>）→ 打勾 → 点「重新启动」。</p>
+    <div class="callout warn" style="margin:14px 0;">
+      <span class="lab">这里最容易勾错</span>
+      列表里还有一项叫 <code>EOS Shared</code>，名字很像，但它只是个<strong>基础零件</strong>，勾了不代表登录能跑。你必须勾的是 <strong>Online Subsystem EOS</strong> 这一行。
+    </div>
+    <p><strong>怎么知道开对了：</strong>重启后看输出日志，多了这两行就对了——</p>
+    <pre><span class="good">Mounting Engine plugin OnlineSubsystemEOS</span>
+<span class="good">Mounting Engine plugin SocketSubsystemEOS</span>
+<span class="dim">（意思是：登录模块和网络模块都装上了）</span></pre>
+    <div class="callout" style="margin:16px 0 0;">
+      <span class="lab">它和真正病因的关系</span>
+      这插件<strong>不是病因</strong>。我实测过：勾了它，中文项目名照样失败。但它属于登录模块的必备零件，缺了也跑不起来。<strong>两件事都得满足：插件开着 + 名字是英文。</strong>
+    </div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">6</div>
+  <div class="c">
+    <div class="t">看一眼日志，确认「报到」成功了</div>
+    <p>编辑器启动完就能看：<strong>窗口 → 输出日志</strong>，搜一下 <code>EOSSDK</code>。找到这一行：</p>
+    <pre>[Boot] EOSSDK Platform Properties [... ProductName=<span class="good">你的英文项目名</span> ...]</pre>
+    <p class="explain"><b>这句话翻译成人话：</b>登录模块启动成功，它报的名字是「你那个英文名」。看到它就说明第一步通了。</p>
+    <p>如果看到的是 <code>EOS_Initialize failed</code>（意思是「启动失败」），或者<strong>压根搜不到 <code>EOSSDK</code> 这几个字</strong>，说明要么名字没改干净，要么插件没装好——回第 3 步（改名）和第 5 步（插件）各查一遍。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">7</div>
+  <div class="c">
+    <div class="t">打开资产，先清掉旧状态，再点创建绑定</div>
+    <p>双击你的 MetaHuman 资产打开。如果「创建完整绑定」按钮是灰的、提示「绑定待处理」，说明之前卡死的状态还存着 —— 先点编辑器里的 <strong>「删除绑定」</strong>把它清掉（只清状态，不删模型）。</p>
+    <p><strong>视口里要有脸。</strong>如果是空资产，左边 <strong>Presets（预设）</strong> 里拖一个进去——没有脸就没有东西可绑。</p>
+    <p>准备好就点「创建完整绑定」。点下去之后浏览器会让你登录 Epic 账号，登录完还要<strong>同意一个 MetaHuman 云服务条款</strong>，同意了再回到 UE。</p>
+    <p><strong>如果浏览器没弹出来，分两种情况：</strong></p>
+    <ul style="font-size:14px;margin-bottom:10px;">
+      <li>之前已经授权过（比如你先拿测试项目试过一次），凭证还在，<strong>不用重新授权</strong>，直接等结果就行</li>
+      <li>从没授权过 → 多半是默认浏览器打不开那个授权链接，换成 Chrome 或 Edge 再点一次</li>
+    </ul>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">8</div>
+  <div class="c">
+    <div class="t">等 1～3 分钟，然后进 Assembly 组装</div>
+    <p>服务器算完会把数据传回来，你电脑上开始生成模型。日志里出现下面这行就代表成功了：</p>
+    <pre>Building Skeletal Mesh <span class="good">FaceMesh_0</span> / <span class="good">FaceMesh_2</span> ...</pre>
+    <p class="explain"><b>翻译：</b>正在生成「脸部模型」。这是绑定成功之后才会做的事，没成功的话永远不会出现这行。</p>
+    <p>另一个旁证：资产文件会从 9 MB 左右涨到 16 MB 左右，多出来的就是骨骼数据。</p>
+    <p><strong>确认绑定成功再进 Assembly：</strong>标志是「创建完整绑定」按钮不再转圈、左侧面板可以正常调脸。没成功就点 Assembly，出来的是半成品。</p>
+    <p><strong>最后组装：</strong>左侧点 <strong>Assembly</strong> → 上面选 <code>UE_Optimize</code> → 质量选 <code>Medium</code> → 点 <code>Download Texture Sources</code> 等贴图下完 → 点 <code>Assemble</code>。完成后内容浏览器里会多一个蓝图，拖进场景就能用。</p>
+    <p><strong>如果 <code>Download Texture Sources</code> 报错：</strong>先看梯子还开着没有（是不是断了），然后重试一次。这一步和绑定用的是两套服务，偶尔单独抽风，一般重试就过。</p>
+  </div>
+</div>
+
+<h2>四、对着症状查</h2>
+<table>
+  <thead><tr><th style="width:33%">你看到的提示</th><th style="width:27%">什么毛病</th><th>怎么处理</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>「MetaHuman Creator 核心数据与引擎一起安装」</td>
+      <td>装引擎时漏了一个数据包</td>
+      <td>打开 Epic Launcher → 库 → 找到你的引擎版本 → 点右边的「选项」→ 勾上 <code>MetaHuman Creator Core Data</code> → 应用，等它下完再重启</td>
+    </tr>
+    <tr>
+      <td>打开脸的时候弹窗列了 4 个开关（Missing Project Settings）</td>
+      <td>脸部骨骼太多，超过引擎默认上限</td>
+      <td>直接点「启用缺失」，然后重启。这四个开关是 MetaHuman 的硬性要求，不开会显示错乱</td>
+    </tr>
+    <tr>
+      <td>点绑定没反应，日志只有「自动绑定面部网格体」</td>
+      <td>① 项目名是中文 ② 登录插件没开 —— 两个都会让登录起不来</td>
+      <td>先在日志搜 <code>EOSSDK</code>：搜不到 → 按第三章第 3 步（改名）和第 5 步（插件）查；搜到了 → 问题在别处</td>
+    </tr>
+    <tr>
+      <td>大概 90 秒后提示「超时」</td>
+      <td>同上面，登录没成功，请求超时退出</td>
+      <td>同上</td>
+    </tr>
+    <tr>
+      <td>进度条挂着，但电脑完全不干活（风扇不响、CPU 0%）</td>
+      <td>任务是死的，界面还在假装转圈</td>
+      <td>关掉这个资产标签页重开。如果按钮变灰，用编辑器里的「删除绑定」清一下状态</td>
+    </tr>
+    <tr>
+      <td>正好 300 秒后报「Server Error」</td>
+      <td>Epic 服务器的锅，不是你的问题</td>
+      <td>看第五章</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>五、另一种情况：300 秒报错（这个不怪你）</h2>
+<p>如果名字已经改成英文、插件也开了，绑定还是失败，那要看<strong>卡了多久</strong>：</p>
+
+<table>
+  <thead><tr><th style="width:32%"></th><th>你这次遇到的</th><th>另一种情况</th></tr></thead>
+  <tbody>
+    <tr><td>请求发出去了吗</td><td><strong>没有，一个都没有</strong></td><td>发出去了，服务器也接了活</td></tr>
+    <tr><td>卡多久</td><td>90 秒左右报超时，或者干脆不动</td><td><strong>正好 300 秒</strong></td></tr>
+    <tr><td>报什么</td><td>「超时」或没提示</td><td><code>Server Error</code></td></tr>
+    <tr><td>怪谁</td><td>怪项目名，能自己修</td><td>怪 Epic，修不了</td></tr>
+    <tr><td>怎么判断</td><td>日志里没有 <code>ProductName=</code> 那行</td><td>日志写着 <code>HTTP request timed out after 300.00 seconds</code></td></tr>
+  </tbody>
+</table>
+
+<p>第二种是 Epic 官方论坛已经承认的 bug，<strong>5.6 / 5.7 / 5.8 都有，5.5 及以前没有</strong>。那 300 秒是写死在插件里的，改配置文件也没用（很多人试过了）。社区里零星有人说换个网络环境能过，或者退出重登能过，但都不稳定，官方一直没修。</p>
+<p class="term">遇到这种就别折腾了，不是你的操作问题，等 Epic 修，或者退回 5.5。</p>
+<p>原始报告：<a href="https://forums.unrealengine.com/t/metahuman-creator-in-editor-plugin-autorig-texture-download-fail-with-a-300s-http-timeout-server-error-from-non-us-regions-5-6-5-7-5-8-regression-from-5-5/2740392">Epic 开发者社区 #2740392</a></p>
+
+<h2>六、这几个坑别踩</h2>
+<table>
+  <thead><tr><th style="width:36%">记住这条</th><th>为什么</th></tr></thead>
+  <tbody>
+    <tr><td>项目名、路径全用英文</td><td>中文会让登录模块起不来，整个云端功能全废</td></tr>
+    <tr><td>文件夹名和 .uproject 名要一致</td><td>不一致会导致项目打不开或变成空项目</td></tr>
+    <tr><td>绑定前先看一眼日志有没有 <code>EOSSDK</code></td><td>登录没起来的话，点一百次按钮也没用，纯浪费时间</td></tr>
+    <tr><td>只点一次，别连点</td><td>点多次会堆一堆任务，前一个卡住会把按钮锁死</td></tr>
+    <tr><td>卡住了先关标签页，别硬等</td><td>死掉的任务会存进资产里，越点越乱</td></tr>
+    <tr><td>渲染设置用「启用缺失」，别自己改</td><td>手改容易漏项，少开一个就显示错乱</td></tr>
+    <tr><td>梯子得开着</td><td>判断标准是 Epic 商店能正常打开。但梯子只负责搭桥，治不了中文名这个病</td></tr>
+    <tr><td>同时只开一套</td><td>两套一起开会互相干扰，比只开一个更不稳</td></tr>
+    <tr><td><code>Online Subsystem EOS</code> 不是 <code>EOS Shared</code></td><td>前者是登录模块（默认关着，要手动开），后者只是个零件。勾错等于没开</td></tr>
+  </tbody>
+</table>
+
+<h2>七、这次是怎么查出来的</h2>
+<p>放这里是因为：这个问题<strong>特别容易被误判成网络问题</strong>，我前面就走了两小时弯路。你以后遇到类似情况，可以照着这个顺序查，省时间。</p>
+
+<ul class="timeline">
+  <li>先解决了两个表面的问题：装数据包、开渲染开关</li>
+  <li><b>以为是网慢</b> —— 换线路、调连接方式、改设置，全都没用</li>
+  <li><b>以为是服务器排队</b> —— 看到「上传 568 KB、下载 5 KB、速度 0」，判断成对面不回话</li>
+  <li class="key"><b>翻 UE 日志，发现连接在握手阶段就被切断</b> —— 这条路走不通，但换一条线路后链路实测很好（0.44 秒就握手完成），绑定还是失败。到这一步才怀疑：根本不是网络</li>
+  <li><b>查插件清单</b> —— 发现登录插件没开，但开了以后还是报「参数无效」</li>
+  <li class="key"><b>做对照实验：新建一个英文项目</b> —— 登录模块一次就启动成功，绑定 83 秒跑完</li>
+  <li><b>回到正式项目改名</b> —— 日志立刻变成「报的名字 = Character」「登录完成」，绑定恢复正常</li>
+  <li><b>事后复测：换另一种网络方式再跑一遍</b> —— 同样跑通，日志里照样出现 <code>FaceMesh</code> 构建。证明网络方式不是关键变量，<strong>项目名才是</strong></li>
+</ul>
+
+<div class="callout warn">
+  <span class="lab">教训</span>
+  以后遇到「云端功能不工作」，<strong>第一件事是看日志里登录模块起来没有</strong>，而不是先怀疑网速。一个 <code>EOS_Initialize failed</code> 就能省掉两小时反复折腾网络的无用功。
+</div>
+
+<footer>
+  <p>本文基于 2026-10-19 的实机排查整理。环境：Windows 11 · UE 5.6.1 · MetaHuman Creator 插件。</p>
+  <p>参考：<a href="https://forums.unrealengine.com/t/metahuman-creator-in-editor-plugin-autorig-texture-download-fail-with-a-300s-http-timeout-server-error-from-non-us-regions-5-6-5-7-5-8-regression-from-5-5/2740392">Epic 论坛 · 300 秒超时报告</a> · <a href="https://forums.unrealengine.com/t/error-not-logged-in-5-6/2542895">Epic 论坛 · 授权弹窗问题</a></p>
+</footer>
+
+</div>
+</body>
+</html>
