@@ -206,7 +206,7 @@ Epic 服务器验明身份
     <p>✅ 正例：<code>D:\Projects\Character\Character.uproject</code></p>
     <div class="callout" style="margin:14px 0 0;">
       <span class="lab">如果名字本来就是英文</span>
-      那病因不在名字上，这份文档的第三章不适用。直接用第五章那张对照表，看日志里卡了多少秒来判断。
+      那病因不在名字上，这份文档的第三章不适用。直接用第六章那张对照表，看日志里卡了多少秒来判断。
     </div>
     <div class="callout" style="margin:12px 0 0;">
       <span class="lab">想先确认一下再动手？</span>
@@ -304,6 +304,7 @@ Epic 服务器验明身份
     <p>另一个旁证：资产文件会从 9 MB 左右涨到 16 MB 左右，多出来的就是骨骼数据。</p>
     <p><strong>确认绑定成功再进 Assembly：</strong>标志是「创建完整绑定」按钮不再转圈、左侧面板可以正常调脸。没成功就点 Assembly，出来的是半成品。</p>
     <p><strong>最后组装：</strong>左侧点 <strong>Assembly</strong> → 上面选 <code>UE_Optimize</code> → 质量选 <code>Medium</code> → 点 <code>Download Texture Sources</code> 等贴图下完 → 点 <code>Assemble</code>。完成后内容浏览器里会多一个蓝图，拖进场景就能用。</p>
+    <p><strong>顺序不能反：</strong>下载纹理不会触发登录。新开编辑器后必须先点一次「创建完整绑定」唤醒凭证，否则一定报「用户未登录」（详见第五章），重新点一次就好，不会重跑云端。</p>
     <p><strong>如果 <code>Download Texture Sources</code> 报错：</strong>先看梯子还开着没有（是不是断了），然后重试一次。这一步和绑定用的是两套服务，偶尔单独抽风，一般重试就过。</p>
   </div>
 </div>
@@ -338,14 +339,71 @@ Epic 服务器验明身份
       <td>关掉这个资产标签页重开。如果按钮变灰，用编辑器里的「删除绑定」清一下状态</td>
     </tr>
     <tr>
+      <td>下载纹理报「用户未登录」</td>
+      <td>新开的编辑器还没唤醒登录，而下载纹理本身不负责登录</td>
+      <td>回编辑器点一次「创建完整绑定」，等日志出现 <code>EOS_Success</code>，再下载。详见第五章</td>
+    </tr>
+    <tr>
       <td>正好 300 秒后报「Server Error」</td>
       <td>Epic 服务器的锅，不是你的问题</td>
-      <td>看第五章</td>
+      <td>看第六章</td>
     </tr>
   </tbody>
 </table>
 
-<h2>五、另一种情况：300 秒报错（这个不怪你）</h2>
+<h2>五、下载纹理报「用户未登录」</h2>
+
+<p>点 <code>Download Texture Sources</code>，弹出两条错误：</p>
+<pre>用户未登录，请在下载源面部纹理前进行自动绑定
+用户未登录，请在下载源身体纹理前进行自动绑定</pre>
+
+<h3>真实原因</h3>
+<p><strong>下载纹理这个动作不负责登录。</strong>它只检查「现在有没有登录」，没有就直接拒绝，连登录框都不弹。</p>
+<p>新开编辑器后，登录凭证不会自动加载，得等某个动作去唤醒它 —— 而这个动作是<strong>「创建完整绑定」</strong>。</p>
+
+<h3>日志长这样</h3>
+<pre>23:31:56  点下载纹理  → 用户未登录
+23:32:25  点下载纹理  → 用户未登录
+23:32:41  点下载纹理  → 用户未登录
+23:34:05  点了「自动绑定面部网格体」
+23:34:07  <span class="good">Login complete: EOS_Success</span>   <span class="dim">← 登录在这里才发生</span></pre>
+<p class="explain"><b>翻译：</b>前面三次全是白点，因为登录动作发生在它们之后。</p>
+
+<h3>解法</h3>
+<div class="step" style="margin-bottom:0;">
+  <div class="n">1</div>
+  <div class="c">
+    <div class="t">回到 MetaHuman 编辑器（不是 Assembly）</div>
+    <p>点一次<strong>「创建完整绑定」</strong>。</p>
+  </div>
+</div>
+<div class="step" style="margin-bottom:0;">
+  <div class="n">2</div>
+  <div class="c">
+    <div class="t">等日志出现 <code>Login complete: EOS_Success</code></div>
+    <p>通常 2 秒。不弹浏览器是正常的 —— 凭证有效时它在后台静默续期。</p>
+  </div>
+</div>
+<div class="step" style="margin-bottom:0;">
+  <div class="n">3</div>
+  <div class="c">
+    <div class="t">再进 Assembly → 点 Download Texture Sources</div>
+    <p>这次就能下了。</p>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="lab">不会重跑云端</span>
+  凭证有效时，点「创建完整绑定」只做本地校验，秒完成，不会重新上传模型。日志里的 <code>Refresh[Expires: 2027-04-16]</code> 说明刷新凭证有效期很长。
+</div>
+
+<div class="callout warn">
+  <span class="lab">记住这个顺序</span>
+  <strong>创建完整绑定（唤醒登录）→ 下载纹理 → 组装</strong><br>
+  每次新开编辑器都要先走一遍第一步。
+</div>
+
+<h2>六、另一种情况：300 秒报错（这个不怪你）</h2>
 <p>如果名字已经改成英文、插件也开了，绑定还是失败，那要看<strong>卡了多久</strong>：</p>
 
 <table>
@@ -363,7 +421,7 @@ Epic 服务器验明身份
 <p class="term">遇到这种就别折腾了，不是你的操作问题，等 Epic 修，或者退回 5.5。</p>
 <p>原始报告：<a href="https://forums.unrealengine.com/t/metahuman-creator-in-editor-plugin-autorig-texture-download-fail-with-a-300s-http-timeout-server-error-from-non-us-regions-5-6-5-7-5-8-regression-from-5-5/2740392">Epic 开发者社区 #2740392</a></p>
 
-<h2>六、这几个坑别踩</h2>
+<h2>七、这几个坑别踩</h2>
 <table>
   <thead><tr><th style="width:36%">记住这条</th><th>为什么</th></tr></thead>
   <tbody>
@@ -376,10 +434,11 @@ Epic 服务器验明身份
     <tr><td>梯子得开着</td><td>判断标准是 Epic 商店能正常打开。但梯子只负责搭桥，治不了中文名这个病</td></tr>
     <tr><td>同时只开一套</td><td>两套一起开会互相干扰，比只开一个更不稳</td></tr>
     <tr><td><code>Online Subsystem EOS</code> 不是 <code>EOS Shared</code></td><td>前者是登录模块（默认关着，要手动开），后者只是个零件。勾错等于没开</td></tr>
+    <tr><td>下载纹理前先点一次绑定</td><td>下载不负责登录，新会话不先唤醒就会报「用户未登录」</td></tr>
   </tbody>
 </table>
 
-<h2>七、这次是怎么查出来的</h2>
+<h2>八、这次是怎么查出来的</h2>
 <p>放这里是因为：这个问题<strong>特别容易被误判成网络问题</strong>，我前面就走了两小时弯路。你以后遇到类似情况，可以照着这个顺序查，省时间。</p>
 
 <ul class="timeline">
